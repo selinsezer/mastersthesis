@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style02.css')}}">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat&display=swap" rel="stylesheet">
+    <title>Smart Contract Annotation Tool </title>
+</head>
+
+<body>
+    <header>
+        <h1>Smart Contract Annotation Tool</h1>
+    </header>
+
+    <main>
+        <form method="POST" action="/">
+            <h2>Contract :</h2>
+            <br>
+            <div style="height:400px;width:800px;border:3px solid #ccc;background-color:yellowgreen;color:white;overflow:auto;">
+                <span class="contract">{{contract}}</span>
+            </div>
+            <br>
+            <div style="display:none">
+                <input name="addr" value={{addr}}>
+            </div>
+            <h2>Annotate:</h2>
+            <input class="btn" type="submit" name="submit_button" value="Positive">
+            <input class="btn" type="submit" name="submit_button" value="Negative">
+        </form>
+    </main>
+</body>
+
+</html>
