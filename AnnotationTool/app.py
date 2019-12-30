@@ -18,6 +18,15 @@ else:
     annotated_df = pd.read_csv(new_file_name, sep=',')
 
 
+def get_current_status():
+    not_annotated = annotated_df[annotated_df['annotation'] == -1]['solidity'].size
+    negative = annotated_df[annotated_df['annotation'] == 0]['solidity'].size
+    positive = annotated_df[annotated_df['annotation'] == 1]['solidity'].size
+    print("Number of not annotated contracts: {}".format(not_annotated))
+    print("Number of pos contracts: {}".format(positive))
+    print("Number of neg contracts: {}".format(negative))
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -28,6 +37,7 @@ def index():
         annotated_df.loc[annotated_df['address'] == request.form['addr'], ['annotation']] = value
         annotated_df.to_csv(new_file_name, sep=',', index=False)
         next_row = annotated_df[annotated_df['annotation'] == -1].head(1)
+        get_current_status()
         if next_row.empty is True:
             return render_template('index.html', contract="Annotation complete.", addr="")
         else:
@@ -35,6 +45,7 @@ def index():
 
     else:
         next_row = annotated_df[annotated_df['annotation'] == -1].head(1)
+        get_current_status()
         return render_template('index.html', contract=next_row['solidity'].values[0], addr=next_row['address'].values[0])
 
 

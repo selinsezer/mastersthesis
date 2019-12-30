@@ -4,3 +4,5 @@ pandas
 numpy
 sklearn
 gensim
+keras
+tensorflow
