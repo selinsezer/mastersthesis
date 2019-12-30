@@ -4,11 +4,11 @@ import numpy as np
 import os
 
 app = Flask(__name__)
-
-file_name = 'voting.csv'
+keyword = app.config.get('keyword')
+file_name = 'corpus/' + keyword + '/' + keyword + '_not_annotated.csv'
 df = pd.read_csv(file_name, sep=',')
+new_file_name = 'corpus/' + keyword + '/' + keyword +  '_annotated.csv'
 
-new_file_name = 'voting_annotated.csv'
 if not os.path.exists(new_file_name):
     annotation_results = np.empty(df['solidity'].size, dtype=int)
     annotation_results.fill(-1)
@@ -39,4 +39,12 @@ def index():
 
 
 if __name__ == "__main__":
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser()
+    parser.add_argument('-keyword')
+    args = parser.parse_args()
+    val = args.keyword
+
+    app.config['keyword'] = val
     app.run()
