@@ -4,10 +4,10 @@ import numpy as np
 import os
 
 app = Flask(__name__)
-keyword = app.config.get('keyword')
+keyword = input('Please enter the keyword to work on: ')
 file_name = 'corpus/' + keyword + '/' + keyword + '_not_annotated.csv'
 df = pd.read_csv(file_name, sep=',')
-new_file_name = 'corpus/' + keyword + '/' + keyword +  '_annotated.csv'
+new_file_name = 'corpus/' + keyword + '/' + keyword + '_annotated.csv'
 
 if not os.path.exists(new_file_name):
     annotation_results = np.empty(df['solidity'].size, dtype=int)
@@ -50,12 +50,4 @@ def index():
 
 
 if __name__ == "__main__":
-    from argparse import ArgumentParser
-
-    parser = ArgumentParser()
-    parser.add_argument('-keyword')
-    args = parser.parse_args()
-    val = args.keyword
-
-    app.config['keyword'] = val
     app.run()
