@@ -4,6 +4,7 @@ from etherscan.contracts import Contract
 import json
 import pandas as pd
 from threading import Thread
+import argparse
 
 
 class Crawler:
@@ -26,12 +27,30 @@ class Crawler:
         return sourcecode[0]['SourceCode']
 
     def process_file(self, fn):
-        processed_df = pd.DataFrame(columns=['address', 'bytecode', 'solidity'])
         write_path = os.path.join(self.processed_path, fn)
         fp = os.path.join(self.raw_path, fn)
         df = pd.read_csv(fp, sep=',')
-        i = 1
-        print("- Processing file: {} with {} data points.".format(fn, len(df)))
+
+        if os.path.exists(write_path):
+            processed_df = pd.read_csv(write_path, sep=',')
+
+            if processed_df.tail(1).values[0][0] == df.tail(1).values[0][0]:
+                print("- The file: {}  is already completely processed.".format(fn))
+                return
+
+            else:
+                last_index_df = df.loc[df['address'] == processed_df.tail(1).values[0][0]].index[0]
+                last_index_pdf = processed_df.loc[processed_df['address'] == processed_df.tail(1).values[0][0]].index[0]
+                assert(last_index_df == last_index_pdf)
+                print("- Continue processing the file: {} with remaining {} data points".format(fn, len(df) - last_index_df))
+                df = df[last_index_df+1:]
+                i = last_index_df + 1
+
+        else:
+            processed_df = pd.DataFrame(columns=['address', 'bytecode', 'solidity'])
+            i = 1
+            print("- Processing file: {} with {} data points.".format(fn, len(df)))
+
         for index, row in df.iterrows():
             try:
                 solidity = self.get_resource_code(row['address'])
@@ -49,12 +68,13 @@ class Crawler:
         print("- Writing final results for file: {}.".format(fn))
         processed_df.to_csv(write_path, index=False, sep=',')
 
-    def crawl_resource_code(self):
+    def crawl_resource_code(self, range):
         file_names = os.listdir(self.raw_path)
         file_names = natsort.natsorted(file_names, reverse=False)
-        file_names = file_names[1:5]
+        file_names = file_names[range[0]:range[1]]
         threads = list()
         for fn in file_names:
+            self.process_file(fn)
             t = Thread(target=self.process_file, args=(fn,))
             threads.append(t)
 
@@ -63,5 +83,11 @@ class Crawler:
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--range", required=True, type=str, help="The range of files to be processed, separated with - ")
+    args = parser.parse_args()
+    file_range = args.range.split("-")
+    file_range = list(map(int, file_range))
     rcc = Crawler()
-    rcc.crawl_resource_code()
+    rcc.crawl_resource_code(file_range)
