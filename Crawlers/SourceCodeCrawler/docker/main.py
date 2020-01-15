@@ -80,7 +80,6 @@ class Crawler:
         file_names = file_names[range[0]:range[1]]
         threads = list()
         for fn in file_names:
-            self.process_file(fn)
             t = Thread(target=self.process_file, args=(fn,))
             threads.append(t)
 
