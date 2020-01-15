@@ -1,0 +1,4 @@
+py-etherscan-api
+natsort
+requests
+pandas

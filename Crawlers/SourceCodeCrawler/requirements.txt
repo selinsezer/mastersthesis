@@ -1,2 +1,0 @@
-py-etherscan-api
-natsort

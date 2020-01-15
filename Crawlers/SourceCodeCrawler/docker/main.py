@@ -47,11 +47,18 @@ class Crawler:
                 i = last_index_df + 1
 
         else:
-            processed_df = pd.DataFrame(columns=['address', 'bytecode', 'solidity'])
             i = 1
             print("- Processing file: {} with {} data points.".format(fn, len(df)))
 
+        processed_df = pd.DataFrame(columns=['address', 'bytecode', 'solidity'])
         for index, row in df.iterrows():
+            if i % 500 == 0:
+                print("\t{}. Writing mid-results for file: {}.".format(i, fn))
+                with open(write_path, 'a') as f:
+                    processed_df.to_csv(f, index=False, sep=',', header=f.tell()==0)
+
+                processed_df = pd.DataFrame(columns=['address', 'bytecode', 'solidity'])
+
             try:
                 solidity = self.get_resource_code(row['address'])
                 if solidity == '':
@@ -61,12 +68,11 @@ class Crawler:
                 solidity = 'Exception'
             processed_df = processed_df.append(
                 [{'address': row['address'], 'bytecode': row['bytecode'], 'solidity': solidity}])
-            if i % 5000 == 0:
-                print("\t{}. Writing mid-results for file: {}.".format(i, fn))
-                processed_df.to_csv(write_path, index=False, sep=',')
             i += 1
+
         print("- Writing final results for file: {}.".format(fn))
-        processed_df.to_csv(write_path, index=False, sep=',')
+        with open(write_path, 'a') as f:
+            processed_df.to_csv(f, index=False, sep=',', header=False)
 
     def crawl_resource_code(self, range):
         file_names = os.listdir(self.raw_path)
@@ -83,7 +89,6 @@ class Crawler:
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--range", required=True, type=str, help="The range of files to be processed, separated with - ")
     args = parser.parse_args()

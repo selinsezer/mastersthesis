@@ -1,0 +1,7 @@
+version: '2'
+services:
+  selin:
+    build: docker
+    container_name: selin
+    volumes:
+      - "./resources:/app/resources"
