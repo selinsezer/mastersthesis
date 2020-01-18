@@ -130,6 +130,11 @@ def train_model(classifier, feature_vector_train, label, feature_vector_valid, i
         predictions = predictions.argmax(axis=-1)
     t.toc()
     print("Time elapsed to train: {}".format(t.elapsed))
+    # return metrics.f1_score(predictions, valid_y) * 100
+    tn, fp, fn, tp = metrics.confusion_matrix(predictions, valid_y).ravel()
+    print("Confusion matrix results:")
+    print("True neg: {}\nFalse pos: {}\nFalse neg: {}\nTrue pos:{}".format(tn, fp, fn, tp))
+    print("---")
     return metrics.accuracy_score(predictions, valid_y) * 100
 
 
