@@ -3,6 +3,8 @@ from evmdasm import EvmBytecode
 # from threading import Thread
 import os
 import natsort
+import json
+from etherscan.contracts import Contract
 
 
 class Preprocessor:
@@ -10,6 +12,10 @@ class Preprocessor:
         self.resources_path = "resources"
         self.raw_path = os.path.join(self.resources_path, "finished_crawling")
         self.processed_path = os.path.join(self.resources_path, "preprocessed")
+        self.dataset_path = os.path.join(self.resources_path, "dataset")
+        self.key_path = os.path.join(self.resources_path, "api_key.json")
+        with open(self.key_path, mode='r') as key_file:
+            self.key = json.loads(key_file.read())['key']
 
     def byte2opcode(self, evm_bytecode):
         evmcode = EvmBytecode(evm_bytecode)  # can be hexstr, 0xhexstr or bytes
@@ -75,6 +81,30 @@ class Preprocessor:
         print("-----------------------------------------------------")
         print()
 
+    def get_resource_code(self, sc_addr):
+        api = Contract(address=str(sc_addr), api_key=self.key)
+        sourcecode = api.get_sourcecode()
+        return sourcecode[0]['SourceCode']
+
+    def check_exceptions(self, fn):
+        print("- Processing file: {}".format(fn))
+        fp = os.path.join(self.processed_path, fn)
+        df = pd.read_csv(fp, sep='\t')
+        to_check = df[df['solidity'] == 'Exception']
+        results = dict(changed=0, same=0)
+        for index, row in to_check.iterrows():
+            try:
+                solidity = self.get_resource_code(row['address'])
+                if solidity == '':
+                    solidity = 'None'
+                results['changed'] += 1
+            except Exception as e:
+                print("\t - Cannot obtain solidity for addr: {}. Exception: {}".format(row['address'], e))
+                solidity = 'Exception'
+                results['same'] += 1
+            df.loc[df['address'] == row['address'], 'solidity'] = solidity
+        print("\t - {} results changed, {} stayed the same.".format(results['changed'], results['same']))
+
     def preprocess_data(self):
         raw_file_names = set(os.listdir(self.raw_path))
         processed_file_names = set(os.listdir(self.processed_path))
@@ -89,7 +119,37 @@ class Preprocessor:
         # for t in threads:
         #     t.start()
 
+    def fix_exception_data(self):
+        processed_file_names = os.listdir(self.processed_path)
+        file_names = natsort.natsorted(processed_file_names, reverse=False)
+        for fn in file_names:
+            self.check_exceptions(fn)
+
+    def distribute_data(self):
+        processed_file_names = os.listdir(self.processed_path)
+        file_names = natsort.natsorted(processed_file_names, reverse=False)
+        for fn in file_names:
+            print("- Processing file: {}".format(fn))
+            fp = os.path.join(self.processed_path, fn)
+            df = pd.read_csv(fp, sep='\t')
+            application_set = df[df['solidity'] == 'Exception']
+            application_set = application_set.append(df[df['solidity'] == 'None'])
+            training_set = df[(df['solidity'] != 'None') & (df['solidity'] != 'Exception')]
+            print("\tClose contracts: {}, open contracts: {}".format(len(application_set), len(training_set)))
+            assert(len(df) == len(application_set) + len(training_set))
+            training_path = os.path.join(self.dataset_path, "training_data")
+            with open(training_path, 'a') as f:
+                training_set.to_csv(f, index=False, sep='\t', header=f.tell() == 0)
+
+            application_path = os.path.join(self.dataset_path, "application_data")
+            with open(application_path, 'a') as f:
+                application_set.to_csv(f, index=False, sep='\t', header=f.tell() == 0)
+            print("-----------------------------------------------------")
+
 
 if __name__ == "__main__":
     rcc = Preprocessor()
     rcc.preprocess_data()
+    # todo when all the data is preprocessed, run below.
+    # rcc.check_exceptions()
+    # rcc.distribute_data()
