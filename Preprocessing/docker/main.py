@@ -12,6 +12,7 @@ class Preprocessor:
         self.resources_path = "resources"
         self.raw_path = os.path.join(self.resources_path, "finished_crawling")
         self.processed_path = os.path.join(self.resources_path, "preprocessed")
+        self.exceptions_fixed_path = os.path.join(self.resources_path, "exceptions_fixed")
         self.dataset_path = os.path.join(self.resources_path, "dataset")
         self.key_path = os.path.join(self.resources_path, "api_key.json")
         with open(self.key_path, mode='r') as key_file:
@@ -90,6 +91,7 @@ class Preprocessor:
         print("- Processing file: {}".format(fn))
         fp = os.path.join(self.processed_path, fn)
         df = pd.read_csv(fp, sep='\t')
+        prev_len = len(df)
         to_check = df[df['solidity'] == 'Exception']
         results = dict(changed=0, same=0)
         for index, row in to_check.iterrows():
@@ -103,6 +105,10 @@ class Preprocessor:
                 solidity = 'Exception'
                 results['same'] += 1
             df.loc[df['address'] == row['address'], 'solidity'] = solidity
+        after_len = len(df)
+        assert(prev_len == after_len)
+        nfp = os.path.join(self.exceptions_fixed_path, fn)
+        df.to_csv(nfp, sep='\t', index=False)
         print("\t - {} results changed, {} stayed the same.".format(results['changed'], results['same']))
 
     def preprocess_data(self):
@@ -121,16 +127,20 @@ class Preprocessor:
 
     def fix_exception_data(self):
         processed_file_names = os.listdir(self.processed_path)
+        processed_file_names = [fn for fn in processed_file_names if 'test' in fn]
         file_names = natsort.natsorted(processed_file_names, reverse=False)
         for fn in file_names:
             self.check_exceptions(fn)
 
     def distribute_data(self):
-        processed_file_names = os.listdir(self.processed_path)
+        processed_file_names = os.listdir(self.exceptions_fixed_path)
+        processed_file_names = [fn for fn in processed_file_names if 'test' in fn]
         file_names = natsort.natsorted(processed_file_names, reverse=False)
+        total_open = 0
+        total_close = 0
         for fn in file_names:
             print("- Processing file: {}".format(fn))
-            fp = os.path.join(self.processed_path, fn)
+            fp = os.path.join(self.exceptions_fixed_path, fn)
             df = pd.read_csv(fp, sep='\t')
             application_set = df[df['solidity'] == 'Exception']
             application_set = application_set.append(df[df['solidity'] == 'None'])
@@ -144,12 +154,16 @@ class Preprocessor:
             application_path = os.path.join(self.dataset_path, "application_data")
             with open(application_path, 'a') as f:
                 application_set.to_csv(f, index=False, sep='\t', header=f.tell() == 0)
+            total_open += len(training_set)
+            total_close += len(application_set)
             print("-----------------------------------------------------")
+        print()
+        print("In total of {} close contracts, {} open contracts found in total dataset.".format(total_close, total_open))
 
 
 if __name__ == "__main__":
     rcc = Preprocessor()
     rcc.preprocess_data()
-    # todo when all the data is preprocessed, run below.
-    # rcc.check_exceptions()
-    # rcc.distribute_data()
+    # note: only when all the data is preprocessed, run below.
+    rcc.fix_exception_data()
+    rcc.distribute_data()

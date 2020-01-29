@@ -6,10 +6,10 @@ import os
 app = Flask(__name__)
 keyword = input('Please enter the keyword to work on: ')
 file_name = 'corpus/' + keyword + '/' + keyword + '_not_annotated.csv'
-df = pd.read_csv(file_name, sep=',')
 new_file_name = 'corpus/' + keyword + '/' + keyword + '_annotated.csv'
 
 if not os.path.exists(new_file_name):
+    df = pd.read_csv(file_name, sep=',')
     annotation_results = np.empty(df['solidity'].size, dtype=int)
     annotation_results.fill(-1)
     annotated_df = df.assign(annotation=annotation_results)
@@ -34,7 +34,9 @@ def index():
             value = 1
         else:
             value = 0
-        annotated_df.loc[annotated_df['address'] == request.form['addr'], ['annotation']] = value
+        #todo find an efficient check here..
+        source_code = annotated_df.loc[annotated_df['address'] == request.form['addr']]['solidity'].values[0]
+        annotated_df.loc[annotated_df['solidity'] == source_code, ['annotation']] = value
         annotated_df.to_csv(new_file_name, sep=',', index=False)
         next_row = annotated_df[annotated_df['annotation'] == -1].head(1)
         get_current_status()
