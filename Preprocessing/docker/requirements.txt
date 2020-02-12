@@ -1,5 +1,0 @@
-pandas
-evmdasm
-natsort
-py-etherscan-api
-requests

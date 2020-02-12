@@ -23,6 +23,10 @@ list_files = os.listdir(topic_path)
 pos_file = os.path.join(topic_path, [path for path in list_files if "non" not in path][0])
 neg_file = os.path.join(topic_path, [path for path in list_files if "non" in path][0])
 
+# pos_file = os.path.join(topic_path, "test_pos.csv")
+# neg_file = os.path.join(topic_path, "test_neg.csv")
+
+
 # load the dataset
 print("Dataset is being read and processed...")
 pos_df = pandas.read_csv(filepath_or_buffer=pos_file)
@@ -78,7 +82,7 @@ xvalid_tfidf = tfidf_vect.transform(valid_x)
 print("N-gram tf-idf vectorizer is created...")
 
 # ngram level tf-idf
-tfidf_vect_ngram = TfidfVectorizer(analyzer='word', token_pattern=r'\w{1,}', ngram_range=(5,5), max_features=5000)
+tfidf_vect_ngram = TfidfVectorizer(analyzer='word', token_pattern=r'\w{1,}', ngram_range=(9,9), max_features=5000)
 tfidf_vect_ngram.fit(trainDF['text'])
 xtrain_tfidf_ngram = tfidf_vect_ngram.transform(train_x)
 xvalid_tfidf_ngram = tfidf_vect_ngram.transform(valid_x)
@@ -134,19 +138,19 @@ def train_model(classifier, feature_vector_train, label, feature_vector_valid, i
     tn, fp, fn, tp = metrics.confusion_matrix(predictions, valid_y).ravel()
     print("Confusion matrix results:")
     print("True neg: {}\nFalse pos: {}\nFalse neg: {}\nTrue pos:{}".format(tn, fp, fn, tp))
-    print("---")
-    return metrics.accuracy_score(predictions, valid_y) * 100
+    print()
+    return metrics.f1_score(predictions, valid_y) * 100
 
 
 # Naive Bayes on Count Vectors
 accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_count, train_y, xvalid_count)
 print("NB, Count Vectors: ", accuracy)
-print()
+print("---")
 
 # Naive Bayes on Word Level TF IDF Vectors
 accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_tfidf, train_y, xvalid_tfidf)
 print("NB, WordLevel TF-IDF: ", accuracy)
-print()
+print("---")
 
 # Naive Bayes on Ngram Level TF IDF Vectors
 accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
@@ -158,19 +162,19 @@ print("############################################")
 # Linear Classifier on Count Vectors
 accuracy = train_model(linear_model.LogisticRegression(), xtrain_count, train_y, xvalid_count)
 print("LR, Count Vectors: ", accuracy)
-print()
+print("---")
 
 # Linear Classifier on Word Level TF IDF Vectors
 accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf, train_y, xvalid_tfidf)
 print("LR, WordLevel TF-IDF: ", accuracy)
-print()
+print("---")
 
 # Linear Classifier on Ngram Level TF IDF Vectors
 accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
 print("LR, N-Gram Vectors: ", accuracy)
 print("############################################")
 
-# ############################################
+############################################
 
 # SVM on Ngram Level TF IDF Vectors
 accuracy = train_model(svm.SVC(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
@@ -182,12 +186,12 @@ print("############################################")
 # RF on Count Vectors
 accuracy = train_model(ensemble.RandomForestClassifier(), xtrain_count, train_y, xvalid_count)
 print("RF, Count Vectors: ", accuracy)
-print()
+print("---")
 
 # RF on Word Level TF IDF Vectors
 accuracy = train_model(ensemble.RandomForestClassifier(), xtrain_tfidf, train_y, xvalid_tfidf)
 print("RF, WordLevel TF-IDF: ", accuracy)
-print()
+print("---")
 
 
 accuracy = train_model(ensemble.RandomForestClassifier(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
@@ -199,195 +203,195 @@ print("############################################")
 # Extereme Gradient Boosting on Count Vectors
 accuracy = train_model(xgboost.XGBClassifier(), xtrain_count.tocsc(), train_y, xvalid_count.tocsc())
 print("Xgb, Count Vectors: ", accuracy)
-print()
+print("---")
 
 # Extereme Gradient Boosting on Word Level TF IDF Vectors
 accuracy = train_model(xgboost.XGBClassifier(), xtrain_tfidf.tocsc(), train_y, xvalid_tfidf.tocsc())
 print("Xgb, WordLevel TF-IDF: ", accuracy)
-print()
+print("---")
 
 accuracy = train_model(xgboost.XGBClassifier(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
 print("Xgb, N-Gram Vectors: ", accuracy)
 print("############################################")
 
 # ############################################
-
-def create_model_architecture(input_size):
-    # create input layer
-    input_layer = layers.Input((input_size,), sparse=False)
-
-    # create hidden layer
-    hidden_layer = layers.Dense(100, activation="relu")(input_layer)
-
-    # create output layer
-    output_layer = layers.Dense(1, activation="sigmoid")(hidden_layer)
-
-    classifier = models.Model(inputs=input_layer, outputs=output_layer)
-    classifier.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
-    return classifier
-
-
-classifier = create_model_architecture(xtrain_tfidf_ngram.shape[1])
-accuracy = train_model(classifier, xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram, is_neural_net=True)
-print("NN, Ngram Level TF IDF Vectors", accuracy)
-print("############################################")
-
-############################################
-
-def create_cnn():
-    # Add an Input Layer
-    input_layer = layers.Input((max_len,))
-
-    # Add the word embedding Layer
-    embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
-        input_layer)
-    embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
-
-    # Add the convolutional Layer
-    conv_layer = layers.Convolution1D(100, 3, activation="relu")(embedding_layer)
-
-    # Add the pooling Layer
-    pooling_layer = layers.GlobalMaxPool1D()(conv_layer)
-
-    # Add the output Layers
-    output_layer1 = layers.Dense(50, activation="relu")(pooling_layer)
-    output_layer1 = layers.Dropout(0.25)(output_layer1)
-    output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
-
-    # Compile the model
-    model = models.Model(inputs=input_layer, outputs=output_layer2)
-    model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
-
-    return model
-
-
-classifier = create_cnn()
-accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
-print("CNN, Word Embeddings", accuracy)
-
-
-############################################
-
-def create_rnn_lstm():
-    # Add an Input Layer
-    input_layer = layers.Input((max_len,))
-
-    # Add the word embedding Layer
-    embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
-        input_layer)
-    embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
-
-    # Add the LSTM Layer
-    lstm_layer = layers.LSTM(100)(embedding_layer)
-
-    # Add the output Layers
-    output_layer1 = layers.Dense(50, activation="relu")(lstm_layer)
-    output_layer1 = layers.Dropout(0.25)(output_layer1)
-    output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
-
-    # Compile the model
-    model = models.Model(inputs=input_layer, outputs=output_layer2)
-    model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
-
-    return model
-
-
-classifier = create_rnn_lstm()
-accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
-print("RNN-LSTM, Word Embeddings", accuracy)
-
-############################################
-
-def create_rnn_gru():
-    # Add an Input Layer
-    input_layer = layers.Input((max_len,))
-
-    # Add the word embedding Layer
-    embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
-        input_layer)
-    embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
-
-    # Add the GRU Layer
-    lstm_layer = layers.GRU(100)(embedding_layer)
-
-    # Add the output Layers
-    output_layer1 = layers.Dense(50, activation="relu")(lstm_layer)
-    output_layer1 = layers.Dropout(0.25)(output_layer1)
-    output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
-
-    # Compile the model
-    model = models.Model(inputs=input_layer, outputs=output_layer2)
-    model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
-
-    return model
-
-
-classifier = create_rnn_gru()
-accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
-print("RNN-GRU, Word Embeddings", accuracy)
-
-############################################
-
-def create_bidirectional_rnn():
-    # Add an Input Layer
-    input_layer = layers.Input((max_len,))
-
-    # Add the word embedding Layer
-    embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
-        input_layer)
-    embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
-
-    # Add the LSTM Layer
-    lstm_layer = layers.Bidirectional(layers.GRU(100))(embedding_layer)
-
-    # Add the output Layers
-    output_layer1 = layers.Dense(50, activation="relu")(lstm_layer)
-    output_layer1 = layers.Dropout(0.25)(output_layer1)
-    output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
-
-    # Compile the model
-    model = models.Model(inputs=input_layer, outputs=output_layer2)
-    model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
-
-    return model
-
-
-classifier = create_bidirectional_rnn()
-accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
-print("RNN-Bidirectional, Word Embeddings", accuracy)
-
-############################################
-
-def create_rcnn():
-    # Add an Input Layer
-    input_layer = layers.Input((max_len,))
-
-    # Add the word embedding Layer
-    embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
-        input_layer)
-    embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
-
-    # Add the recurrent layer
-    rnn_layer = layers.Bidirectional(layers.GRU(50, return_sequences=True))(embedding_layer)
-
-    # Add the convolutional Layer
-    conv_layer = layers.Convolution1D(100, 3, activation="relu")(embedding_layer)
-
-    # Add the pooling Layer
-    pooling_layer = layers.GlobalMaxPool1D()(conv_layer)
-
-    # Add the output Layers
-    output_layer1 = layers.Dense(50, activation="relu")(pooling_layer)
-    output_layer1 = layers.Dropout(0.25)(output_layer1)
-    output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
-
-    # Compile the model
-    model = models.Model(inputs=input_layer, outputs=output_layer2)
-    model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
-
-    return model
-
-
-classifier = create_rcnn()
-accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
-print("CNN, Word Embeddings", accuracy)
+#
+# def create_model_architecture(input_size):
+#     # create input layer
+#     input_layer = layers.Input((input_size,), sparse=False)
+#
+#     # create hidden layer
+#     hidden_layer = layers.Dense(100, activation="relu")(input_layer)
+#
+#     # create output layer
+#     output_layer = layers.Dense(1, activation="sigmoid")(hidden_layer)
+#
+#     classifier = models.Model(inputs=input_layer, outputs=output_layer)
+#     classifier.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
+#     return classifier
+#
+#
+# classifier = create_model_architecture(xtrain_tfidf_ngram.shape[1])
+# accuracy = train_model(classifier, xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram, is_neural_net=True)
+# print("NN, Ngram Level TF IDF Vectors", accuracy)
+# print("############################################")
+#
+# ############################################
+#
+# def create_cnn():
+#     # Add an Input Layer
+#     input_layer = layers.Input((max_len,))
+#
+#     # Add the word embedding Layer
+#     embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
+#         input_layer)
+#     embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
+#
+#     # Add the convolutional Layer
+#     conv_layer = layers.Convolution1D(100, 3, activation="relu")(embedding_layer)
+#
+#     # Add the pooling Layer
+#     pooling_layer = layers.GlobalMaxPool1D()(conv_layer)
+#
+#     # Add the output Layers
+#     output_layer1 = layers.Dense(50, activation="relu")(pooling_layer)
+#     output_layer1 = layers.Dropout(0.25)(output_layer1)
+#     output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
+#
+#     # Compile the model
+#     model = models.Model(inputs=input_layer, outputs=output_layer2)
+#     model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
+#
+#     return model
+#
+#
+# classifier = create_cnn()
+# accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
+# print("CNN, Word Embeddings", accuracy)
+#
+#
+# ############################################
+#
+# def create_rnn_lstm():
+#     # Add an Input Layer
+#     input_layer = layers.Input((max_len,))
+#
+#     # Add the word embedding Layer
+#     embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
+#         input_layer)
+#     embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
+#
+#     # Add the LSTM Layer
+#     lstm_layer = layers.LSTM(100)(embedding_layer)
+#
+#     # Add the output Layers
+#     output_layer1 = layers.Dense(50, activation="relu")(lstm_layer)
+#     output_layer1 = layers.Dropout(0.25)(output_layer1)
+#     output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
+#
+#     # Compile the model
+#     model = models.Model(inputs=input_layer, outputs=output_layer2)
+#     model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
+#
+#     return model
+#
+#
+# classifier = create_rnn_lstm()
+# accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
+# print("RNN-LSTM, Word Embeddings", accuracy)
+#
+# ############################################
+#
+# def create_rnn_gru():
+#     # Add an Input Layer
+#     input_layer = layers.Input((max_len,))
+#
+#     # Add the word embedding Layer
+#     embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
+#         input_layer)
+#     embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
+#
+#     # Add the GRU Layer
+#     lstm_layer = layers.GRU(100)(embedding_layer)
+#
+#     # Add the output Layers
+#     output_layer1 = layers.Dense(50, activation="relu")(lstm_layer)
+#     output_layer1 = layers.Dropout(0.25)(output_layer1)
+#     output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
+#
+#     # Compile the model
+#     model = models.Model(inputs=input_layer, outputs=output_layer2)
+#     model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
+#
+#     return model
+#
+#
+# classifier = create_rnn_gru()
+# accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
+# print("RNN-GRU, Word Embeddings", accuracy)
+#
+# ############################################
+#
+# def create_bidirectional_rnn():
+#     # Add an Input Layer
+#     input_layer = layers.Input((max_len,))
+#
+#     # Add the word embedding Layer
+#     embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
+#         input_layer)
+#     embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
+#
+#     # Add the LSTM Layer
+#     lstm_layer = layers.Bidirectional(layers.GRU(100))(embedding_layer)
+#
+#     # Add the output Layers
+#     output_layer1 = layers.Dense(50, activation="relu")(lstm_layer)
+#     output_layer1 = layers.Dropout(0.25)(output_layer1)
+#     output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
+#
+#     # Compile the model
+#     model = models.Model(inputs=input_layer, outputs=output_layer2)
+#     model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
+#
+#     return model
+#
+#
+# classifier = create_bidirectional_rnn()
+# accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
+# print("RNN-Bidirectional, Word Embeddings", accuracy)
+#
+# ############################################
+#
+# def create_rcnn():
+#     # Add an Input Layer
+#     input_layer = layers.Input((max_len,))
+#
+#     # Add the word embedding Layer
+#     embedding_layer = layers.Embedding(len(word_index) + 1, 100, weights=[embedding_matrix], trainable=False)(
+#         input_layer)
+#     embedding_layer = layers.SpatialDropout1D(0.3)(embedding_layer)
+#
+#     # Add the recurrent layer
+#     rnn_layer = layers.Bidirectional(layers.GRU(50, return_sequences=True))(embedding_layer)
+#
+#     # Add the convolutional Layer
+#     conv_layer = layers.Convolution1D(100, 3, activation="relu")(embedding_layer)
+#
+#     # Add the pooling Layer
+#     pooling_layer = layers.GlobalMaxPool1D()(conv_layer)
+#
+#     # Add the output Layers
+#     output_layer1 = layers.Dense(50, activation="relu")(pooling_layer)
+#     output_layer1 = layers.Dropout(0.25)(output_layer1)
+#     output_layer2 = layers.Dense(1, activation="sigmoid")(output_layer1)
+#
+#     # Compile the model
+#     model = models.Model(inputs=input_layer, outputs=output_layer2)
+#     model.compile(optimizer=optimizers.Adam(), loss='binary_crossentropy')
+#
+#     return model
+#
+#
+# classifier = create_rcnn()
+# accuracy = train_model(classifier, train_seq_x, train_y, valid_seq_x, is_neural_net=True)
+# print("CNN, Word Embeddings", accuracy)
